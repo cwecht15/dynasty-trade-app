@@ -141,6 +141,9 @@ def team_selector(team_label, key_prefix):
     if f"{key_prefix}_selections" not in st.session_state:
         st.session_state[f"{key_prefix}_selections"] = [""]
 
+    if f"{key_prefix}_remove_index" not in st.session_state:
+        st.session_state[f"{key_prefix}_remove_index"] = None
+
     selections = st.session_state[f"{key_prefix}_selections"]
 
     # Add button
@@ -160,15 +163,21 @@ def team_selector(team_label, key_prefix):
         selections[i] = new_val
 
         if row[1].button("✖️", key=f"remove_{key_prefix}_{i}"):
-            selections.pop(i)
-            st.experimental_rerun()
+            st.session_state[f"{key_prefix}_remove_index"] = i
 
     # Clear All
     if st.button("🧹 Clear All", key=f"clear_{key_prefix}"):
         st.session_state[f"{key_prefix}_selections"] = [""]
+        st.session_state[f"{key_prefix}_remove_index"] = None
         st.experimental_rerun()
 
-    # Return cleaned asset list
+    # Handle pending removal (outside the loop)
+    remove_index = st.session_state.get(f"{key_prefix}_remove_index")
+    if remove_index is not None and remove_index < len(selections):
+        selections.pop(remove_index)
+        st.session_state[f"{key_prefix}_remove_index"] = None
+        st.experimental_rerun()
+
     return [val for val in selections if val]
 
 # Team Selectors
