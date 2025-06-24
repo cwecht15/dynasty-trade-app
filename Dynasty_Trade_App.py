@@ -112,24 +112,24 @@ df_final_combined.tail()
 import pandas as pd
 import streamlit as st
 
-# --- Load data ---
+# --- Load and clean data ---
 df = pd.read_csv("Final_Trade_Data.csv")
 df["Trade Value"] = df["Trade Value"].round(1)
 df["SF Trade Value"] = df["SF Trade Value"].round(1)
 
-# --- Format display label with age ---
+# --- Format label with integer age ---
 def format_label(row):
     if pd.isna(row["POS"]):
         return row["Name"]
-    return f"{row['Name']} ({row['Team']} - {row['POS']} - {row['Age']:.1f} yrs)"
+    return f"{row['Name']} ({row['Team']} - {row['POS']} - {int(round(row['Age']))} yrs)"
 
 df["Display"] = df.apply(format_label, axis=1)
 
-# --- Streamlit UI setup ---
+# --- Streamlit setup ---
 st.set_page_config(page_title="Dynasty Trade App", layout="centered")
 st.title("🏈 Dynasty Trade Analyzer")
 
-# League format
+# Format selection
 format_type = st.radio("Select League Format", ["1-QB", "Superflex"])
 value_column = "Trade Value" if format_type == "1-QB" else "SF Trade Value"
 
@@ -148,7 +148,7 @@ team_b_assets = st.multiselect(
     key="team_b"
 )
 
-# --- Calculate totals ---
+# --- Calculate values ---
 def calculate_total(assets):
     table = df[df["Display"].isin(assets)][["Display", value_column]]
     return table[value_column].sum(), table.rename(columns={value_column: "Value", "Display": "Asset"})
@@ -169,24 +169,18 @@ if a_count != b_count:
         team_b_value += adj
         team_b_table.loc[len(team_b_table.index)] = ["Uneven Player Adjustment", adj]
 
-# --- Summary formatting fix ---
-def format_table(df_):
-    return df_.style.set_table_styles(
-        [{"selector": "td", "props": [("white-space", "normal")]}]
-    )
-
-# --- Display Summary ---
+# --- Display summary using st.table (not st.dataframe) ---
 st.markdown("---")
 st.markdown("### 💰 Trade Summary")
 
 col1, col2 = st.columns(2)
 with col1:
     st.write(f"**Team A Total Value:** {team_a_value}")
-    st.dataframe(format_table(team_a_table), use_container_width=True)
+    st.table(team_a_table)
 
 with col2:
     st.write(f"**Team B Total Value:** {team_b_value}")
-    st.dataframe(format_table(team_b_table), use_container_width=True)
+    st.table(team_b_table)
 
 # --- Verdict ---
 st.markdown("---")
