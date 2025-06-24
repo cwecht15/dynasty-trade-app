@@ -158,7 +158,8 @@ team_b_assets = st.multiselect(
 def calculate_total(assets):
     table = df[df["Display"].isin(assets)][["Display", value_column]].copy()
     table[value_column] = table[value_column].round(1)
-    return table[value_column].sum(), table.rename(columns={value_column: "Value", "Display": "Asset"})
+    table["Value"] = table[value_column].map(lambda x: f"{x:.1f}")
+    return table[value_column].sum(), table.rename(columns={"Display": "Asset"})[["Asset", "Value"]]
 
 team_a_value, team_a_table = calculate_total(team_a_assets)
 team_b_value, team_b_table = calculate_total(team_b_assets)
