@@ -114,20 +114,12 @@ df_final_combined.tail()
 import pandas as pd
 import streamlit as st
 
-# Load and round data
+# --- Load and clean data ---
 df = pd.read_csv("Final_Trade_Data.csv")
 df['Trade Value'] = df['Trade Value'].round(1)
 df['SF Trade Value'] = df['SF Trade Value'].round(1)
 
-# Set page config
-st.set_page_config(page_title="Dynasty Trade Value App", layout="centered")
-st.title("🏈 Dynasty Trade Analyzer")
-
-# Select league format
-format_type = st.radio("Select League Format", ["1-QB", "Superflex"])
-value_column = "Trade Value" if format_type == "1-QB" else "SF Trade Value"
-
-# Format label with team and position for players
+# Format display
 def format_label(row):
     if pd.isna(row["POS"]):
         return row["Name"]  # For picks
@@ -135,53 +127,88 @@ def format_label(row):
 
 df["Display"] = df.apply(format_label, axis=1)
 
-# Create reusable function to select assets for each team
-def asset_selector(label, key_prefix):
-    st.subheader(label)
-    assets = []
-    i = 0
-    while True:
-        selected = st.selectbox(
-            f"Select asset {i + 1}",
-            [""] + df["Display"].tolist(),
-            key=f"{key_prefix}_{i}",
-        )
-        if selected:
-            assets.append(selected)
-            i += 1
-        else:
-            break
-    return assets
+# --- UI setup ---
+st.set_page_config(page_title="Dynasty Trade App", layout="centered")
+st.title("🏈 Dynasty Trade Analyzer")
 
-# Select assets for each team
-team_a_assets = asset_selector("Team A Assets", "a")
-team_b_assets = asset_selector("Team B Assets", "b")
+# Trade format
+format_type = st.radio("Select League Format", ["1-QB", "Superflex"])
+value_column = "Trade Value" if format_type == "1-QB" else "SF Trade Value"
 
-# Helper to calculate value sum
-def calculate_total(selected_assets):
-    rows = df[df["Display"].isin(selected_assets)]
-    return rows[value_column].sum(), rows[[value_column, "Display"]]
+# Initialize session state
+for team in ["team_a", "team_b"]:
+    if team not in st.session_state:
+        st.session_state[team] = []
 
-# Calculate and display values
-team_a_total, team_a_table = calculate_total(team_a_assets)
-team_b_total, team_b_table = calculate_total(team_b_assets)
+# --- Helper functions ---
 
-st.markdown("### Trade Summary")
+def add_asset(team_key, new_asset):
+    if new_asset and new_asset not in st.session_state[team_key]:
+        st.session_state[team_key].append(new_asset)
 
+def remove_asset(team_key, asset):
+    st.session_state[team_key].remove(asset)
+
+def clear_assets(team_key):
+    st.session_state[team_key] = []
+
+def calculate_total(assets):
+    table = df[df["Display"].isin(assets)][["Display", value_column]]
+    return table[value_column].sum(), table.rename(columns={value_column: "Value", "Display": "Asset"})
+
+# --- Team Selectors ---
 col1, col2 = st.columns(2)
-with col1:
-    st.write("**Team A Total Value:**", team_a_total)
-    st.dataframe(team_a_table.rename(columns={"Display": "Asset", value_column: "Value"}), use_container_width=True)
-with col2:
-    st.write("**Team B Total Value:**", team_b_total)
-    st.dataframe(team_b_table.rename(columns={"Display": "Asset", value_column: "Value"}), use_container_width=True)
 
-# Summary difference
+for team_label, team_key in zip(["Team A", "Team B"], ["team_a", "team_b"]):
+    with (col1 if team_key == "team_a" else col2):
+        st.subheader(team_label)
+
+        new_asset = st.selectbox("Add Asset", [""] + df["Display"].tolist(), key=f"select_{team_key}")
+        if st.button("➕ Add", key=f"add_{team_key}"):
+            add_asset(team_key, new_asset)
+
+        if st.button("🧹 Clear All", key=f"clear_{team_key}"):
+            clear_assets(team_key)
+
+        for asset in st.session_state[team_key]:
+            remove = st.button(f"❌ {asset}", key=f"remove_{team_key}_{asset}")
+            if remove:
+                remove_asset(team_key, asset)
+                st.experimental_rerun()
+
+# --- Value Calculation ---
+team_a_value, team_a_table = calculate_total(st.session_state["team_a"])
+team_b_value, team_b_table = calculate_total(st.session_state["team_b"])
+
+# Uneven adjustment
+a_count = len(st.session_state["team_a"])
+b_count = len(st.session_state["team_b"])
+if a_count != b_count:
+    diff = abs(a_count - b_count)
+    if a_count < b_count:
+        team_a_value += diff * 100
+        team_a_table.loc[len(team_a_table.index)] = ["Uneven Player Adjustment", diff * 100]
+    else:
+        team_b_value += diff * 100
+        team_b_table.loc[len(team_b_table.index)] = ["Uneven Player Adjustment", diff * 100]
+
+# --- Display Summary ---
 st.markdown("---")
-if team_a_total > team_b_total:
-    st.success(f"✅ Team A is giving up **{team_a_total - team_b_total:.1f}** more in value.")
-elif team_b_total > team_a_total:
-    st.success(f"✅ Team B is giving up **{team_b_total - team_a_total:.1f}** more in value.")
+st.markdown("### 💰 Trade Summary")
+
+col3, col4 = st.columns(2)
+with col3:
+    st.write(f"**Team A Total Value:** {team_a_value}")
+    st.dataframe(team_a_table, use_container_width=True)
+with col4:
+    st.write(f"**Team B Total Value:** {team_b_value}")
+    st.dataframe(team_b_table, use_container_width=True)
+
+# --- Evaluation ---
+st.markdown("---")
+if team_a_value > team_b_value:
+    st.success(f"✅ Team A is giving up **{team_a_value - team_b_value:.1f}** more value.")
+elif team_b_value > team_a_value:
+    st.success(f"✅ Team B is giving up **{team_b_value - team_a_value:.1f}** more value.")
 else:
     st.info("♻️ This trade is perfectly balanced.")
-
