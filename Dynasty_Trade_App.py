@@ -117,7 +117,7 @@ df = pd.read_csv("Final_Trade_Data.csv")
 df["Trade Value"] = df["Trade Value"].round(1)
 df["SF Trade Value"] = df["SF Trade Value"].round(1)
 
-# Format display label
+# Format label
 def format_label(row):
     if pd.isna(row["POS"]):
         return row["Name"]
@@ -129,42 +129,23 @@ df["Display"] = df.apply(format_label, axis=1)
 st.set_page_config(page_title="Dynasty Trade App", layout="centered")
 st.title("🏈 Dynasty Trade Analyzer")
 
-# League format selection
+# League format
 format_type = st.radio("Select League Format", ["1-QB", "Superflex"])
 value_column = "Trade Value" if format_type == "1-QB" else "SF Trade Value"
 
-# Team Selector UI
-def team_selector(label, key):
-    st.subheader(label)
+# Team A
+team_a_assets = st.multiselect(
+    "Select assets for Team A",
+    options=df["Display"].tolist(),
+    key="team_a"
+)
 
-    # Initialize
-    if key not in st.session_state:
-        st.session_state[key] = []
-
-    # Multiselect UI
-    selected = st.multiselect(
-        f"Select assets for {label}",
-        options=df["Display"].tolist(),
-        default=st.session_state[key],
-        key=f"{key}_multiselect"
-    )
-
-    # Save selection
-    st.session_state[key] = selected
-
-    # Clear button
-    if st.button(f"🧹 Clear All - {label}", key=f"clear_{key}"):
-        st.session_state[key] = []
-        st.experimental_rerun()
-
-    return selected
-
-# Render selectors
-col1, col2 = st.columns(2)
-with col1:
-    team_a_assets = team_selector("Team A", "team_a")
-with col2:
-    team_b_assets = team_selector("Team B", "team_b")
+# Team B
+team_b_assets = st.multiselect(
+    "Select assets for Team B",
+    options=df["Display"].tolist(),
+    key="team_b"
+)
 
 # --- Value Calculation ---
 def calculate_total(assets):
@@ -192,11 +173,11 @@ if a_count != b_count:
 st.markdown("---")
 st.markdown("### 💰 Trade Summary")
 
-col3, col4 = st.columns(2)
-with col3:
+col1, col2 = st.columns(2)
+with col1:
     st.write(f"**Team A Total Value:** {team_a_value}")
     st.dataframe(team_a_table, use_container_width=True)
-with col4:
+with col2:
     st.write(f"**Team B Total Value:** {team_b_value}")
     st.dataframe(team_b_table, use_container_width=True)
 
