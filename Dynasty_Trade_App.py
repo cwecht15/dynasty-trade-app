@@ -6,17 +6,12 @@
 
 import pandas as pd
 
-# File paths
-dynasty_values_path = pd.read_csv("Dynasty_Values.csv")
-dynasty_pick_values_path = pd.read_csv("Dynasty_Pick_Values.csv")
-overall_rankings_path = pd.read_csv("OverallDynastyRankings.csv")
-superflex_rankings_path =pd.read_csv("SuperflexDynastyRankings.csv")
 
 # Read into DataFrames
-df_values = pd.read_csv(dynasty_values_path)
-df_picks = pd.read_csv(dynasty_pick_values_path)
-df_overall = pd.read_csv(overall_rankings_path)
-df_superflex = pd.read_csv(superflex_rankings_path)
+df_values = pd.read_csv("Dynasty_Values.csv")
+df_picks = pd.read_csv("Dynasty_Pick_Values.csv")
+df_overall = pd.read_csv("OverallDynastyRankings.csv")
+df_superflex = pd.read_csv("SuperflexDynastyRankings.csv")
 
 # Preview
 print(df_values.head())
