@@ -117,7 +117,7 @@ df = pd.read_csv("Final_Trade_Data.csv")
 df["Trade Value"] = df["Trade Value"].round(1)
 df["SF Trade Value"] = df["SF Trade Value"].round(1)
 
-# --- Format label with integer age ---
+# --- Format label with full info and integer/N/A age ---
 def format_label(row):
     if pd.isna(row["POS"]):
         return row["Name"]
@@ -129,18 +129,17 @@ def format_label(row):
         
     return f"{row['Name']} ({row['Team']} - {row['POS']} - {age_str})"
 
-
 df["Display"] = df.apply(format_label, axis=1)
 
-# --- Streamlit setup ---
+# --- Streamlit UI setup ---
 st.set_page_config(page_title="Dynasty Trade App", layout="centered")
 st.title("🏈 Dynasty Trade Analyzer")
 
-# Format selection
+# League format selector
 format_type = st.radio("Select League Format", ["1-QB", "Superflex"])
 value_column = "Trade Value" if format_type == "1-QB" else "SF Trade Value"
 
-# --- Team selectors ---
+# Team selectors
 team_a_assets = st.multiselect(
     "Select assets for Team A",
     options=df["Display"].tolist(),
@@ -155,20 +154,22 @@ team_b_assets = st.multiselect(
     key="team_b"
 )
 
-# --- Calculate values ---
+# --- Calculate totals (rounded values in table) ---
 def calculate_total(assets):
-    table = df[df["Display"].isin(assets)][["Display", value_column]]
+    table = df[df["Display"].isin(assets)][["Display", value_column]].copy()
+    table[value_column] = table[value_column].round(1)
     return table[value_column].sum(), table.rename(columns={value_column: "Value", "Display": "Asset"})
 
 team_a_value, team_a_table = calculate_total(team_a_assets)
 team_b_value, team_b_table = calculate_total(team_b_assets)
 
-# --- Uneven player adjustment ---
+# --- Uneven player adjustment (rounded) ---
 a_count = len(team_a_assets)
 b_count = len(team_b_assets)
+
 if a_count != b_count:
     diff = abs(a_count - b_count)
-    adj = diff * 100
+    adj = round(diff * 100, 1)
     if a_count < b_count:
         team_a_value += adj
         team_a_table.loc[len(team_a_table.index)] = ["Uneven Player Adjustment", adj]
@@ -176,24 +177,25 @@ if a_count != b_count:
         team_b_value += adj
         team_b_table.loc[len(team_b_table.index)] = ["Uneven Player Adjustment", adj]
 
-# --- Display summary using st.table (not st.dataframe) ---
+# --- Display results ---
 st.markdown("---")
 st.markdown("### 💰 Trade Summary")
 
 col1, col2 = st.columns(2)
 with col1:
-    st.write(f"**Team A Total Value:** {team_a_value}")
+    st.write(f"**Team A Total Value:** {round(team_a_value, 1)}")
     st.table(team_a_table)
 
 with col2:
-    st.write(f"**Team B Total Value:** {team_b_value}")
+    st.write(f"**Team B Total Value:** {round(team_b_value, 1)}")
     st.table(team_b_table)
 
 # --- Verdict ---
 st.markdown("---")
+diff_val = round(abs(team_a_value - team_b_value), 1)
 if team_a_value > team_b_value:
-    st.success(f"✅ Team A is giving up **{team_a_value - team_b_value:.1f}** more value.")
+    st.success(f"✅ Team A is giving up **{diff_val}** more value.")
 elif team_b_value > team_a_value:
-    st.success(f"✅ Team B is giving up **{team_b_value - team_a_value:.1f}** more value.")
+    st.success(f"✅ Team B is giving up **{diff_val}** more value.")
 else:
     st.info("♻️ This trade is perfectly balanced.")
