@@ -112,24 +112,24 @@ df_final_combined.tail()
 import pandas as pd
 import streamlit as st
 
-# --- Load and clean data ---
+# --- Load data ---
 df = pd.read_csv("Final_Trade_Data.csv")
 df["Trade Value"] = df["Trade Value"].round(1)
 df["SF Trade Value"] = df["SF Trade Value"].round(1)
 
-# --- Format full label with age, team, position ---
+# --- Format display label with age ---
 def format_label(row):
     if pd.isna(row["POS"]):
         return row["Name"]
-    return f"{row['Name']} ({row['Team']} - {row['POS']} - {row['Age']} yrs)"
+    return f"{row['Name']} ({row['Team']} - {row['POS']} - {row['Age']:.1f} yrs)"
 
 df["Display"] = df.apply(format_label, axis=1)
 
-# Set up Streamlit app
+# --- Streamlit UI setup ---
 st.set_page_config(page_title="Dynasty Trade App", layout="centered")
 st.title("🏈 Dynasty Trade Analyzer")
 
-# Select league format
+# League format
 format_type = st.radio("Select League Format", ["1-QB", "Superflex"])
 value_column = "Trade Value" if format_type == "1-QB" else "SF Trade Value"
 
@@ -148,7 +148,7 @@ team_b_assets = st.multiselect(
     key="team_b"
 )
 
-# --- Calculate value summaries ---
+# --- Calculate totals ---
 def calculate_total(assets):
     table = df[df["Display"].isin(assets)][["Display", value_column]]
     return table[value_column].sum(), table.rename(columns={value_column: "Value", "Display": "Asset"})
@@ -156,7 +156,7 @@ def calculate_total(assets):
 team_a_value, team_a_table = calculate_total(team_a_assets)
 team_b_value, team_b_table = calculate_total(team_b_assets)
 
-# --- Uneven asset adjustment ---
+# --- Uneven player adjustment ---
 a_count = len(team_a_assets)
 b_count = len(team_b_assets)
 if a_count != b_count:
@@ -169,20 +169,26 @@ if a_count != b_count:
         team_b_value += adj
         team_b_table.loc[len(team_b_table.index)] = ["Uneven Player Adjustment", adj]
 
-# --- Display summary ---
+# --- Summary formatting fix ---
+def format_table(df_):
+    return df_.style.set_table_styles(
+        [{"selector": "td", "props": [("white-space", "normal")]}]
+    )
+
+# --- Display Summary ---
 st.markdown("---")
 st.markdown("### 💰 Trade Summary")
 
 col1, col2 = st.columns(2)
 with col1:
     st.write(f"**Team A Total Value:** {team_a_value}")
-    st.dataframe(team_a_table.style.set_properties(**{"white-space": "normal"}), use_container_width=True)
+    st.dataframe(format_table(team_a_table), use_container_width=True)
 
 with col2:
     st.write(f"**Team B Total Value:** {team_b_value}")
-    st.dataframe(team_b_table.style.set_properties(**{"white-space": "normal"}), use_container_width=True)
+    st.dataframe(format_table(team_b_table), use_container_width=True)
 
-# --- Verdict section ---
+# --- Verdict ---
 st.markdown("---")
 if team_a_value > team_b_value:
     st.success(f"✅ Team A is giving up **{team_a_value - team_b_value:.1f}** more value.")
@@ -190,4 +196,3 @@ elif team_b_value > team_a_value:
     st.success(f"✅ Team B is giving up **{team_b_value - team_a_value:.1f}** more value.")
 else:
     st.info("♻️ This trade is perfectly balanced.")
-
