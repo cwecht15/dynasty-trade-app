@@ -121,7 +121,14 @@ df["SF Trade Value"] = df["SF Trade Value"].round(1)
 def format_label(row):
     if pd.isna(row["POS"]):
         return row["Name"]
-    return f"{row['Name']} ({row['Team']} - {row['POS']} - {int(round(row['Age']))} yrs)"
+    
+    if pd.isna(row["Age"]):
+        age_str = "Age - N/A"
+    else:
+        age_str = f"Age - {int(round(row['Age']))}"
+        
+    return f"{row['Name']} ({row['Team']} - {row['POS']} - {age_str})"
+
 
 df["Display"] = df.apply(format_label, axis=1)
 
